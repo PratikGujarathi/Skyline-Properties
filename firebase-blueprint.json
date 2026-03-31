@@ -1,0 +1,205 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "User profile with role-based access.",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string", "description": "Full name of the user." },
+        "email": { "type": "string", "format": "email", "description": "Email address." },
+        "role": { "type": "string", "enum": ["USER", "AGENT"], "description": "Access role." },
+        "country": { "type": "string", "description": "Country of origin." },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Account creation timestamp." }
+      },
+      "required": ["name", "email", "role", "createdAt"]
+    },
+    "Property": {
+      "title": "Property",
+      "description": "Real estate property listing with detailed features.",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string", "description": "Property title." },
+        "description": { "type": "string", "description": "Detailed description." },
+        "country": { "type": "string", "description": "Country." },
+        "city": { "type": "string", "description": "City." },
+        "area": { "type": "string", "description": "Specific area or neighborhood." },
+        "price": { "type": "number", "description": "Listing price." },
+        "type": { "type": "string", "enum": ["villa", "flat", "plot"], "description": "Property type." },
+        "bedrooms": { "type": "integer", "description": "Number of bedrooms." },
+        "bathrooms": { "type": "integer", "description": "Number of bathrooms." },
+        "sqft": { "type": "integer", "description": "Square footage." },
+        "images": { "type": "array", "items": { "type": "string" }, "description": "Array of image URLs." },
+        "virtualTourURL": { "type": "string", "format": "uri", "description": "Virtual tour link." },
+        "status": { "type": "string", "enum": ["available", "sold"], "description": "Listing status." },
+        "agentId": { "type": "string", "description": "UID of the agent who listed it." },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Listing creation timestamp." }
+      },
+      "required": ["title", "price", "country", "city", "type", "agentId", "createdAt", "status"]
+    },
+    "Wishlist": {
+      "title": "Wishlist",
+      "description": "User's saved properties.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "propertyId": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "propertyId"]
+    },
+    "Appointment": {
+      "title": "Appointment",
+      "description": "Property viewing appointment.",
+      "type": "object",
+      "properties": {
+        "propertyId": { "type": "string" },
+        "userId": { "type": "string" },
+        "agentId": { "type": "string" },
+        "date": { "type": "string", "format": "date-time" },
+        "status": { "type": "string", "enum": ["pending", "approved", "rejected"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["propertyId", "userId", "agentId", "date", "status"]
+    },
+    "Review": {
+      "title": "Review",
+      "description": "Property review and rating.",
+      "type": "object",
+      "properties": {
+        "propertyId": { "type": "string" },
+        "userId": { "type": "string" },
+        "userName": { "type": "string" },
+        "rating": { "type": "integer", "minimum": 1, "maximum": 5 },
+        "comment": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["propertyId", "userId", "rating", "comment", "createdAt"]
+    },
+    "Chat": {
+      "title": "Chat",
+      "description": "Real-time chat session between user and agent.",
+      "type": "object",
+      "properties": {
+        "participants": { "type": "array", "items": { "type": "string" }, "description": "UIDs of the user and agent." },
+        "lastMessage": { "type": "string" },
+        "updatedAt": { "type": "string", "format": "date-time" },
+        "participantNames": { "type": "object", "description": "Map of UID to display name for UI." }
+      },
+      "required": ["participants", "updatedAt"]
+    },
+    "Message": {
+      "title": "Message",
+      "description": "Individual message within a chat.",
+      "type": "object",
+      "properties": {
+        "senderId": { "type": "string" },
+        "text": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["senderId", "text", "createdAt"]
+    },
+    "Transaction": {
+      "title": "Transaction",
+      "description": "Record of a property sale.",
+      "type": "object",
+      "properties": {
+        "propertyId": { "type": "string" },
+        "buyerId": { "type": "string", "description": "Optional buyer UID." },
+        "agentId": { "type": "string" },
+        "price": { "type": "number" },
+        "commission": { "type": "number" },
+        "status": { "type": "string", "enum": ["completed", "pending"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["propertyId", "agentId", "price", "commission", "status", "createdAt"]
+    },
+    "Document": {
+      "title": "Document",
+      "description": "Property-related legal documents and paperwork.",
+      "type": "object",
+      "properties": {
+        "propertyId": { "type": "string" },
+        "userId": { "type": "string", "description": "UID of the user (buyer/client) the document is for." },
+        "agentId": { "type": "string", "description": "UID of the agent who uploaded the document." },
+        "agreementURL": { "type": "string", "format": "uri", "description": "URL to the signed agreement." },
+        "paperworkURL": { "type": "string", "format": "uri", "description": "URL to additional paperwork." },
+        "propertyTitle": { "type": "string", "description": "Title of the property for display." },
+        "userEmail": { "type": "string", "format": "email", "description": "Email of the client for display." },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["propertyId", "userId", "agentId", "createdAt"]
+    },
+    "SavedSearch": {
+      "title": "SavedSearch",
+      "description": "User's saved property search filters.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "filters": { "type": "object", "description": "Search criteria." },
+        "name": { "type": "string", "description": "User-defined name for the search." },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "filters", "name", "createdAt"]
+    },
+    "Alert": {
+      "title": "Alert",
+      "description": "Property alerts for users.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "type": { "type": "string", "enum": ["new_listing", "price_drop", "appointment_update"] },
+        "message": { "type": "string" },
+        "read": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "relatedId": { "type": "string", "description": "ID of the related property or appointment." }
+      },
+      "required": ["userId", "type", "message", "read", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "User profiles."
+    },
+    "/properties/{propertyId}": {
+      "schema": "Property",
+      "description": "Property listings."
+    },
+    "/wishlist/{wishId}": {
+      "schema": "Wishlist",
+      "description": "User wishlists."
+    },
+    "/appointments/{appointmentId}": {
+      "schema": "Appointment",
+      "description": "Viewing appointments."
+    },
+    "/reviews/{reviewId}": {
+      "schema": "Review",
+      "description": "Property reviews."
+    },
+    "/chats/{chatId}": {
+      "schema": "Chat",
+      "description": "Chat sessions."
+    },
+    "/chats/{chatId}/messages/{messageId}": {
+      "schema": "Message",
+      "description": "Chat messages."
+    },
+    "/transactions/{transactionId}": {
+      "schema": "Transaction",
+      "description": "Sales transactions."
+    },
+    "/documents/{documentId}": {
+      "schema": "Document",
+      "description": "Property documents."
+    },
+    "/saved_searches/{searchId}": {
+      "schema": "SavedSearch",
+      "description": "User's saved searches."
+    },
+    "/alerts/{alertId}": {
+      "schema": "Alert",
+      "description": "User notifications."
+    }
+  }
+}

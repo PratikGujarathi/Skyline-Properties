@@ -1,0 +1,5 @@
+{
+  "name": "Skyline Properties",
+  "description": "Skyline Properties - Find Your Perfect Property Worldwide. A premium real estate platform with role-based access for users and agents, featuring secure authentication and property management.",
+  "requestFramePermissions": ["microphone"]
+}

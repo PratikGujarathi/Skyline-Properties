@@ -1,0 +1,18 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    match /properties/{userId}/{allPaths=**} {
+      allow read: if true;
+      allow write: if request.auth != null && request.auth.uid == userId;
+    }
+    match /documents/{propertyId}/{userId}/{allPaths=**} {
+      allow read: if request.auth != null && (request.auth.uid == userId || 
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'AGENT');
+      allow write: if request.auth != null;
+    }
+    match /{allPaths=**} {
+      allow read, write: if request.auth != null;
+    }
+  }
+}

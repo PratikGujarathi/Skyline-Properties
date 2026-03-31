@@ -1,0 +1,211 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    // Collection: users
+    // Fields: name, email, role (USER/AGENT), country, createdAt
+    //
+    // Collection: properties
+    // Fields: title, description, price, location, agentId, imageUrl, createdAt
+    // ===============================================================
+
+    // Helper Functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function isSuperAdmin() {
+      return isAuthenticated() && (
+        request.auth.token.email == "pratikgujarathi1818@gmail.com" ||
+        request.auth.token.email == "grofistogma08@gmail.com"
+      );
+    }
+
+    function isAdmin() {
+      return isSuperAdmin() || (
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'AGENT'
+      );
+    }
+
+    function isValidUser(data) {
+      return data.keys().hasAll(['name', 'email', 'role', 'createdAt']) &&
+             data.name is string && data.name.size() > 0 && data.name.size() < 100 &&
+             data.email is string && data.email.matches("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$") &&
+             data.role in ['USER', 'AGENT'];
+    }
+
+    function isValidProperty(data) {
+      return data.keys().hasAll(['title', 'price', 'country', 'city', 'type', 'agentId', 'createdAt', 'status']) &&
+             data.title is string && data.title.size() > 0 && data.title.size() < 500 &&
+             data.price is number && data.price >= 0 &&
+             data.country is string && data.country.size() > 0 &&
+             data.city is string && data.city.size() > 0 &&
+             data.type in ['villa', 'flat', 'plot'] &&
+             data.status in ['available', 'sold'] &&
+             data.agentId is string && 
+             (isSuperAdmin() || data.agentId == request.auth.uid) &&
+             data.createdAt is timestamp &&
+             (data.images is list || !('images' in data)) &&
+             (data.updatedAt is timestamp || !('updatedAt' in data));
+    }
+
+    function isValidWishlist(data) {
+      return data.keys().hasAll(['userId', 'propertyId']) &&
+             data.userId == request.auth.uid &&
+             data.propertyId is string;
+    }
+
+    function isValidAppointment(data) {
+      return data.keys().hasAll(['propertyId', 'userId', 'agentId', 'date', 'status']) &&
+             data.userId == request.auth.uid &&
+             data.status == 'pending';
+    }
+
+    function isValidReview(data) {
+      return data.keys().hasAll(['propertyId', 'userId', 'rating', 'comment', 'createdAt']) &&
+             data.userId == request.auth.uid &&
+             data.rating is int && data.rating >= 1 && data.rating <= 5 &&
+             data.comment is string && data.comment.size() < 1000;
+    }
+
+    function isValidChat(data) {
+      return data.keys().hasAll(['participants', 'updatedAt']) &&
+             data.participants is list && data.participants.size() == 2 &&
+             request.auth.uid in data.participants;
+    }
+
+    function isValidMessage(data) {
+      return data.keys().hasAll(['senderId', 'text', 'createdAt']) &&
+             data.senderId == request.auth.uid &&
+             data.text is string && data.text.size() > 0 && data.text.size() < 5000;
+    }
+
+    function isValidTransaction(data) {
+      return data.keys().hasAll(['propertyId', 'agentId', 'price', 'commission', 'status', 'createdAt']) &&
+             (isSuperAdmin() || data.agentId == request.auth.uid) &&
+             data.price is number && data.price >= 0 &&
+             data.commission is number && data.commission >= 0 &&
+             data.status in ['completed', 'pending'] &&
+             (data.userId is string || data.userId == null || !('userId' in data)) &&
+             (data.userEmail is string || data.userEmail == null || !('userEmail' in data)) &&
+             (data.userName is string || !('userName' in data));
+    }
+
+    function isValidDocument(data) {
+      return data.keys().hasAll(['propertyId', 'userId', 'agentId', 'createdAt']) &&
+             data.propertyId is string &&
+             data.userId is string &&
+             data.agentId is string &&
+             (data.agreementURL is string || !('agreementURL' in data)) &&
+             (data.paperworkURL is string || !('paperworkURL' in data)) &&
+             (data.propertyTitle is string || !('propertyTitle' in data)) &&
+             (data.userEmail is string || !('userEmail' in data)) &&
+             (data.userName is string || !('userName' in data));
+    }
+
+    function isValidSavedSearch(data) {
+      return data.keys().hasAll(['userId', 'filters', 'name', 'createdAt']) &&
+             data.userId == request.auth.uid &&
+             data.name is string && data.name.size() > 0 && data.name.size() < 100 &&
+             data.filters is map;
+    }
+
+    function isValidAlert(data) {
+      return data.keys().hasAll(['userId', 'type', 'message', 'read', 'createdAt']) &&
+             data.userId == request.auth.uid &&
+             data.type in ['new_listing', 'price_drop', 'appointment_update'] &&
+             data.message is string && data.message.size() > 0 && data.message.size() < 500 &&
+             data.read is bool;
+    }
+
+    // Rules
+    match /users/{userId} {
+      allow read: if isAuthenticated();
+      allow create: if isOwner(userId) && isValidUser(request.resource.data);
+      allow update: if isOwner(userId) && isValidUser(request.resource.data) && 
+                      request.resource.data.role == resource.data.role; // Role cannot be changed by user
+      allow delete: if isSuperAdmin();
+    }
+
+    match /properties/{propertyId} {
+      allow read: if true; // Publicly viewable
+      allow create: if isAdmin() && isValidProperty(request.resource.data);
+      allow update: if isAdmin() && (isSuperAdmin() || resource.data.agentId == request.auth.uid) && isValidProperty(request.resource.data);
+      allow delete: if isAdmin() && (isSuperAdmin() || resource.data.agentId == request.auth.uid);
+    }
+
+    match /wishlist/{wishId} {
+      allow read: if isAuthenticated() && resource.data.userId == request.auth.uid;
+      allow create: if isAuthenticated() && isValidWishlist(request.resource.data);
+      allow delete: if isAuthenticated() && resource.data.userId == request.auth.uid;
+    }
+
+    match /appointments/{appointmentId} {
+      allow read: if isAuthenticated() && (isSuperAdmin() || resource.data.userId == request.auth.uid || resource.data.agentId == request.auth.uid);
+      allow create: if isAuthenticated() && isValidAppointment(request.resource.data);
+      allow update: if isAuthenticated() && (
+        (resource.data.userId == request.auth.uid && request.resource.data.status == resource.data.status) || // User can't change status
+        (resource.data.agentId == request.auth.uid && request.resource.data.status in ['approved', 'rejected']) || // Agent can change status
+        isSuperAdmin()
+      );
+      allow delete: if isAuthenticated() && (resource.data.userId == request.auth.uid || isSuperAdmin());
+    }
+
+    match /reviews/{reviewId} {
+      allow read: if true;
+      allow create: if isAuthenticated() && isValidReview(request.resource.data);
+      allow update: if isAuthenticated() && resource.data.userId == request.auth.uid && isValidReview(request.resource.data);
+      allow delete: if isAuthenticated() && resource.data.userId == request.auth.uid;
+    }
+
+    match /chats/{chatId} {
+      allow read: if isAuthenticated() && request.auth.uid in resource.data.participants;
+      allow create: if isAuthenticated() && isValidChat(request.resource.data);
+      allow update: if isAuthenticated() && request.auth.uid in resource.data.participants;
+      
+      match /messages/{messageId} {
+        allow read: if isAuthenticated() && request.auth.uid in get(/databases/$(database)/documents/chats/$(chatId)).data.participants;
+        allow create: if isAuthenticated() && request.auth.uid in get(/databases/$(database)/documents/chats/$(chatId)).data.participants && isValidMessage(request.resource.data);
+      }
+    }
+
+    match /transactions/{transactionId} {
+      allow read: if isAuthenticated() && (isSuperAdmin() || resource.data.agentId == request.auth.uid);
+      allow create: if isAdmin() && isValidTransaction(request.resource.data);
+      allow update, delete: if isSuperAdmin();
+    }
+
+    match /documents/{documentId} {
+      allow read: if isAuthenticated() && (
+        resource.data.userId == request.auth.uid || 
+        resource.data.agentId == request.auth.uid ||
+        isAdmin()
+      );
+      allow create: if isAdmin() && isValidDocument(request.resource.data);
+      allow update: if isAdmin() && isValidDocument(request.resource.data);
+      allow delete: if isAdmin();
+    }
+
+    match /saved_searches/{searchId} {
+      allow read: if isAuthenticated() && resource.data.userId == request.auth.uid;
+      allow create: if isAuthenticated() && isValidSavedSearch(request.resource.data);
+      allow update: if isAuthenticated() && resource.data.userId == request.auth.uid && isValidSavedSearch(request.resource.data);
+      allow delete: if isAuthenticated() && resource.data.userId == request.auth.uid;
+    }
+
+    match /alerts/{alertId} {
+      allow read: if isAuthenticated() && resource.data.userId == request.auth.uid;
+      allow create: if isAdmin(); // Only agents/system can create alerts for users
+      allow update: if isAuthenticated() && resource.data.userId == request.auth.uid && 
+                      request.resource.data.diff(resource.data).affectedKeys().hasOnly(['read']); // User can only mark as read
+      allow delete: if isAuthenticated() && resource.data.userId == request.auth.uid;
+    }
+  }
+}
